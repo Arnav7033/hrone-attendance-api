@@ -782,7 +782,7 @@ def employee_monthly(
     stats = result[0] if result else {}
     working_days = count_working_days(employee["joined_on"], date.fromisoformat(first), date.fromisoformat(last))
     present_days = float(stats.get("present_days", 0) or 0)
-    attendance_pct = round_half_up((present_days / working_days * 100), 2) if working_days else None
+    attendance_pct = round_half_up((present_days / working_days * 100), 4) if working_days else None
     return {
         "emp_code": emp_code,
         "month": month,
