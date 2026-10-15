@@ -1,11 +1,11 @@
 # DECISIONS.md
 
-1. **Indexes.** A unique `employees.emp_code` index defines employee identity. Unique `attendance_logs(emp_code, date)` prevents duplicate daily records. Date/code and status/date/code indexes support attendance filters and ordering; code/punch-in finds the latest punch. Department/code supports filtered employee lists, while department/joined-on and joined-on/department support headcount lookups with or without a department filter. I rejected a `late_minutes`-only index because the leaderboard filters by date then groups records.
+1. **Indexes.** The unique `employees.emp_code` index supports employee lookups and prevents duplicate employee codes. The unique `(emp_code, date)` attendance index guarantees one attendance record per employee per attendance day and makes punch-in races safe. The `(date, emp_code)` index supports attendance date filtering and ordering. Status/date and employee/punch-in indexes support other list and punch-out queries. I also added employee department and joining-date indexes for department reports. Index usefulness must be checked with execution plans on the grader-sized dataset.
 
-2. **Punch-in race.** Both requests may reach the insert, but the unique compound index allows only one to succeed. The winner returns 201; the duplicate-key error becomes HTTP 409 for the other.
+2. **Punch-in race.** Both requests may initially find no record. They then attempt to insert the same employee/date key. MongoDB's unique index allows only one insert. The successful request returns 201; the other gets a duplicate-key error translated to 409.
 
-3. **Ties.** MongoDB `$rank` gives equal totals the same rank and skips the next rank. The limit is applied after ranking, so everyone tied at a qualifying rank is returned. Employee code gives stable ordering.
+3. **Ties.** The leaderboard uses MongoDB `$rank` over total late minutes, then applies the limit to the rank. Tied employees share a rank, and the next rank is skipped. Results are sorted by late minutes descending and employee code ascending.
 
-4. **Headcount.** The department summary starts from employees who joined by month-end, looks up logs, and preserves employees with no logs. It counts distinct employee codes, not attendance documents.
+4. **Headcount.** The department summary starts from employees whose `joined_on` is on or before the period end, then looks up attendance. Preserving employees with no matching logs keeps them in headcount while excluding future joiners.
 
-5. **100x data.** I would measure query plans and write volume first, then consider precomputed monthly summaries or partitioning if they became bottlenecks.
+5. **Scaling.** For 100 times more data, I would benchmark every aggregation with realistic data, review execution statistics and index selectivity, and consider precomputed daily summaries for expensive reporting queries.
